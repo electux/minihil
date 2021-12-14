@@ -1,0 +1,31 @@
+name: minihil-desktop C++ CI
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'sw/minihil-desktop/**'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'sw/minihil-desktop/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install GTK--
+      id: install_gtkmm
+      run: |
+        sudo apt-get update
+        sudo apt-get install jq
+        sudo apt-get install libgtkmm-3.0-dev
+    - name: make all
+      id: gnu_make_all
+      run: |
+        cd sw/minihil-desktop/build
+        make all
+    - name: make clean
+      id: gnu_make_clean
+      run: |
+        cd sw/minihil-desktop/build
+        make clean

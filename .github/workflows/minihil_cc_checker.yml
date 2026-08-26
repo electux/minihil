@@ -1,0 +1,48 @@
+name: minihil C++ Checker
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'sw/minihil/**/*.cpp'
+      - 'sw/minihil/**/*.hpp'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'sw/minihil/**/*.cpp'
+      - 'sw/minihil/**/*.hpp'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check length of line in modules
+        id: long_line_checker
+        run: |
+          echo "Checking the length of lines in modules"
+          modules_ok=0
+          files=($(find sw/minihil/ -type f \( -name '*.cpp' -o -name '*.hpp' \)))
+          for f in "${files[@]}"; do
+            line_length=$(wc -L < "${f}")
+            echo "${f} : $line_length"
+            if [[ $line_length -gt 500 ]]; then
+              modules_ok=1
+            fi
+          done
+          [[ $modules_ok -eq 0 ]] && echo "All modules are good" || exit 1
+          
+      - name: Check number of lines in modules
+        id: num_line_checker
+        run: |
+          echo "Checking the number of lines in modules"
+          modules_ok=0
+          files=($(find sw/minihil/ -type f \( -name '*.cpp' -o -name '*.hpp' \)))
+          for f in "${files[@]}"; do
+            line_count=$(wc -l < "${f}")
+            echo "${f} : $line_count"
+            if [[ $line_count -gt 500 ]]; then
+              modules_ok=1
+            fi
+          done
+          [[ $modules_ok -eq 0 ]] && echo "All modules are good" && exit 0 || exit 1

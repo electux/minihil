@@ -1,0 +1,13 @@
+[Unit]
+Description=MiniHIL C++ POSIX JSON-RPC Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/minihild
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

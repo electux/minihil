@@ -1,2 +1,33 @@
+# Yocto Build Directories
+sw/build*/
+downloads/
+sstate-cache/
+tmp/
+
+# C++ CMake Build Directories
+sw/minihil/build*/
+**/CMakeCache.txt
+**/CMakeFiles/
+**/Makefile
+**/cmake_install.cmake
+**/compile_commands.json
+
+# C++ Compilation Artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# Python Cache Directories
 __pycache__/
 *.py[cod]
+
+# IDE and Editor Local Configs
+.vscode/
+.idea/
+*.code-workspace
+.clangd
+
+# OS generated files
+.DS_Store
+Thumbs.db

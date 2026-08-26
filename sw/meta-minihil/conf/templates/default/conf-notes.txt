@@ -1,0 +1,12 @@
+Welcome to the MiniHIL Yocto Project build environment!
+
+Common bitbake targets:
+  - core-image-minimal: Minimal bootable console image.
+  - core-image-base: Console image with full RPi hardware support.
+  - minihil-image: Custom MiniHIL image including custom tools.
+
+To build the MiniHIL image, run:
+    bitbake minihil-image
+
+To view available image recipes in the layers:
+    bitbake-layers show-recipes "*-image*"

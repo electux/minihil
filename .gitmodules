@@ -1,0 +1,3 @@
+[submodule "sw/rpi-base-platform"]
+	path = sw/rpi-base-platform
+	url = ../rpi-base-platform.git

@@ -1,11 +1,25 @@
 name: minihil toc
+
 on:
   push:
+    branches: [ master ]
     paths:
       - '**.md'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - '**.md'
+
+permissions:
+  contents: write
+
 jobs:
   generateTOC:
-    name: TOC Generator
+    name: minihil toc
     runs-on: ubuntu-latest
     steps:
-      - uses: technote-space/toc-generator@v2
+      - uses: actions/checkout@v4
+      - name: Generate TOC
+        uses: technote-space/toc-generator@v4
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

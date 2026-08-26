@@ -1,7 +1,5 @@
 <img align="right" src="https://raw.githubusercontent.com/electux/minihil/master/docs/minihil_logo.png" width="25%">
 
-# miniHIL
-
 **minihil** is development device which can be used for **[HWIL](https://en.wikipedia.org/wiki/Hardware-in-the-loop_simulation)**.
 
 The README is used to introduce the tool and provide instructions on
@@ -59,4 +57,3 @@ Lets help and support Raspberry PI && GNOME.
 </a> <a href="https://www.gnome.org/support-gnome/donate/">
 <img src="https://raw.githubusercontent.com/electux/minihil/master/docs/GNOME.png" alt="GNOME" width="327" height="115">
 </a>
-

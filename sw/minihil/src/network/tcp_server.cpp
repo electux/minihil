@@ -6,14 +6,23 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <algorithm>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 namespace minihil {
 
-TcpServer::TcpServer(int port, std::shared_ptr<IRpcHandler> rpcHandler)
+TcpServer::TcpServer(int port, std::shared_ptr<IRpcHandler> rpcHandler,
+                     bool useSsl, bool useMtls, const std::string& caPath, const std::string& certPath, const std::string& keyPath)
     : m_port(port),
       m_rpcHandler(rpcHandler),
       m_running(false),
-      m_serverSocket(-1) {}
+      m_serverSocket(-1),
+      m_useSsl(useSsl),
+      m_useMtls(useMtls),
+      m_caPath(caPath),
+      m_certPath(certPath),
+      m_keyPath(keyPath),
+      m_sslCtx(nullptr) {}
 
 TcpServer::~TcpServer() {
     stop();
@@ -22,10 +31,55 @@ TcpServer::~TcpServer() {
 bool TcpServer::start() {
     if (m_running) return true;
 
+    if (m_useSsl) {
+        // Initialize OpenSSL context
+        const SSL_METHOD* method = TLS_server_method();
+        SSL_CTX* ctx = SSL_CTX_new(method);
+        if (!ctx) {
+            std::cerr << "[TcpServer] Failed to create SSL context." << std::endl;
+            ERR_print_errors_fp(stderr);
+            return false;
+        }
+
+        // Load cert and key
+        if (SSL_CTX_use_certificate_file(ctx, m_certPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
+            std::cerr << "[TcpServer] Failed to use certificate file: " << m_certPath << std::endl;
+            ERR_print_errors_fp(stderr);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (SSL_CTX_use_PrivateKey_file(ctx, m_keyPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
+            std::cerr << "[TcpServer] Failed to use private key file: " << m_keyPath << std::endl;
+            ERR_print_errors_fp(stderr);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        // Load CA if mTLS is enabled
+        if (m_useMtls && !m_caPath.empty()) {
+            if (SSL_CTX_load_verify_locations(ctx, m_caPath.c_str(), nullptr) <= 0) {
+                std::cerr << "[TcpServer] Failed to load CA verify locations from: " << m_caPath << std::endl;
+                ERR_print_errors_fp(stderr);
+                SSL_CTX_free(ctx);
+                return false;
+            }
+            SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+            std::cout << "[TcpServer] mTLS enabled: requiring client certificate verified by CA: " << m_caPath << std::endl;
+        }
+
+        m_sslCtx = ctx;
+        std::cout << "[TcpServer] SSL Context initialized successfully with cert: " << m_certPath << " (mTLS: " << (m_useMtls ? "ENABLED" : "DISABLED") << ")" << std::endl;
+    }
+
     // Create IPv4 TCP socket
     m_serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (m_serverSocket < 0) {
         std::cerr << "[TcpServer] Failed to create socket." << std::endl;
+        if (m_sslCtx) {
+            SSL_CTX_free(static_cast<SSL_CTX*>(m_sslCtx));
+            m_sslCtx = nullptr;
+        }
         return false;
     }
 
@@ -45,6 +99,10 @@ bool TcpServer::start() {
         std::cerr << "[TcpServer] Failed to bind to port " << m_port << "." << std::endl;
         close(m_serverSocket);
         m_serverSocket = -1;
+        if (m_sslCtx) {
+            SSL_CTX_free(static_cast<SSL_CTX*>(m_sslCtx));
+            m_sslCtx = nullptr;
+        }
         return false;
     }
 
@@ -52,13 +110,17 @@ bool TcpServer::start() {
         std::cerr << "[TcpServer] Failed to listen." << std::endl;
         close(m_serverSocket);
         m_serverSocket = -1;
+        if (m_sslCtx) {
+            SSL_CTX_free(static_cast<SSL_CTX*>(m_sslCtx));
+            m_sslCtx = nullptr;
+        }
         return false;
     }
 
     m_running = true;
     m_listenerThread = std::thread(&TcpServer::listenLoop, this);
     
-    std::cout << "[TcpServer] Server listening on port " << m_port << "..." << std::endl;
+    std::cout << "[TcpServer] Server listening on port " << m_port << " (SSL: " << (m_useSsl ? "ENABLED" : "DISABLED") << ")..." << std::endl;
     return true;
 }
 
@@ -78,15 +140,31 @@ void TcpServer::stop() {
         m_listenerThread.join();
     }
 
-    // Close all active client connections to unblock recv() in handleClient
-    std::lock_guard<std::mutex> lock(m_clientsMutex);
-    for (int fd : m_clientSockets) {
-        if (fd >= 0) {
-            shutdown(fd, SHUT_RDWR);
-            close(fd);
+    // Shut down active client connections to trigger read failures in client threads
+    {
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        for (const auto& session : m_clientSessions) {
+            if (session.socketFd >= 0) {
+                shutdown(session.socketFd, SHUT_RDWR);
+            }
         }
     }
-    m_clientSockets.clear();
+
+    // Wait for all client threads to clean up and exit
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            if (m_clientSessions.empty()) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (m_sslCtx) {
+        SSL_CTX_free(static_cast<SSL_CTX*>(m_sslCtx));
+        m_sslCtx = nullptr;
+    }
     
     std::cout << "[TcpServer] Server stopped." << std::endl;
 }
@@ -103,12 +181,18 @@ void TcpServer::listenLoop() {
             continue;
         }
 
-        {
-            std::lock_guard<std::mutex> lock(m_clientsMutex);
-            m_clientSockets.push_back(clientSocket);
+        SSL* ssl = nullptr;
+        if (m_useSsl && m_sslCtx) {
+            ssl = SSL_new(static_cast<SSL_CTX*>(m_sslCtx));
+            SSL_set_fd(ssl, clientSocket);
         }
 
-        // Handle each client in a separate detached thread (automatic memory reclamation on exit)
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            m_clientSessions.push_back({clientSocket, ssl});
+        }
+
+        // Handle each client in a separate detached thread
         std::thread t(&TcpServer::handleClient, this, clientSocket);
         t.detach();
     }
@@ -119,9 +203,48 @@ void TcpServer::handleClient(int clientSocket) {
     char buffer[2048];
     std::string requestBuffer;
 
+    SSL* ssl = nullptr;
+    if (m_useSsl) {
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            for (const auto& session : m_clientSessions) {
+                if (session.socketFd == clientSocket) {
+                    ssl = static_cast<SSL*>(session.ssl);
+                    break;
+                }
+            }
+        }
+
+        if (ssl) {
+            if (SSL_accept(ssl) <= 0) {
+                std::cerr << "[TcpServer] SSL handshake failed." << std::endl;
+                ERR_print_errors_fp(stderr);
+
+                if (ssl) SSL_free(ssl);
+                close(clientSocket);
+
+                std::lock_guard<std::mutex> lock(m_clientsMutex);
+                auto it = std::find_if(m_clientSessions.begin(), m_clientSessions.end(),
+                    [clientSocket](const ClientSession& s) { return s.socketFd == clientSocket; });
+                if (it != m_clientSessions.end()) {
+                    m_clientSessions.erase(it);
+                }
+                return;
+            }
+            std::cout << "[TcpServer] SSL handshake completed successfully." << std::endl;
+        }
+    }
+
     while (m_running) {
         memset(buffer, 0, sizeof(buffer));
-        ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+        ssize_t bytesRead = 0;
+
+        if (m_useSsl && ssl) {
+            bytesRead = SSL_read(ssl, buffer, sizeof(buffer) - 1);
+        } else {
+            bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+        }
+
         if (bytesRead <= 0) {
             break; // Client disconnected or socket closed during shutdown
         }
@@ -137,21 +260,34 @@ void TcpServer::handleClient(int clientSocket) {
             if (!rawRequest.empty() && rawRequest != "\r") {
                 std::string rawResponse = m_rpcHandler->processRequest(rawRequest);
                 if (!rawResponse.empty() && m_running) {
-                    send(clientSocket, rawResponse.c_str(), rawResponse.size(), 0);
+                    if (m_useSsl && ssl) {
+                        SSL_write(ssl, rawResponse.c_str(), rawResponse.size());
+                    } else {
+                        send(clientSocket, rawResponse.c_str(), rawResponse.size(), 0);
+                    }
                 }
             }
         }
     }
 
+    if (m_useSsl && ssl) {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
     close(clientSocket);
     
     // Remove from active client tracking
-    std::lock_guard<std::mutex> lock(m_clientsMutex);
-    auto it = std::find(m_clientSockets.begin(), m_clientSockets.end(), clientSocket);
-    if (it != m_clientSockets.end()) {
-        m_clientSockets.erase(it);
+    {
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = std::find_if(m_clientSessions.begin(), m_clientSessions.end(),
+            [clientSocket](const ClientSession& s) { return s.socketFd == clientSocket; });
+        if (it != m_clientSessions.end()) {
+            m_clientSessions.erase(it);
+        }
     }
     std::cout << "[TcpServer] Client disconnected." << std::endl;
 }
+
+void TcpServer::cleanupClosedClients() {}
 
 } // namespace minihil

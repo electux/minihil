@@ -60,7 +60,7 @@ bool GpiodRelayController::init() {
             line_cfg.add_line_settings(offset,
                 ::gpiod::line_settings()
                     .set_direction(::gpiod::line::direction::OUTPUT)
-                    .set_output_value(::gpiod::line::value::INACTIVE)
+                    .set_output_value(::gpiod::line::value::ACTIVE)
             );
         }
 
@@ -82,7 +82,7 @@ bool GpiodRelayController::setRelay(int relayId, bool state) {
     m_states[relayId] = state;
     try {
         unsigned int offset = m_relayGpioMap.at(relayId);
-        m_impl->request.set_value(offset, state ? ::gpiod::line::value::ACTIVE : ::gpiod::line::value::INACTIVE);
+        m_impl->request.set_value(offset, state ? ::gpiod::line::value::INACTIVE : ::gpiod::line::value::ACTIVE);
         return true;
     } catch (const std::exception& e) {
         std::cerr << "[GpiodRelayController] Error setting relay " << relayId << ": " << e.what() << std::endl;

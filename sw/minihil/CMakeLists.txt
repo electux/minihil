@@ -42,9 +42,14 @@ else()
     target_compile_definitions(minihild PRIVATE MOCK_GPIO)
 endif()
 
+# Find OpenSSL
+find_package(OpenSSL REQUIRED)
+
 target_link_libraries(minihild
     PRIVATE
     nlohmann_json::nlohmann_json
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 # Install rules (for Yocto installation)

@@ -12,7 +12,12 @@ namespace minihil {
 
 class TcpServer : public IServer {
 public:
-    TcpServer(int port, std::shared_ptr<IRpcHandler> rpcHandler);
+    TcpServer(int port, std::shared_ptr<IRpcHandler> rpcHandler,
+              bool useSsl = false,
+              bool useMtls = false,
+              const std::string& caPath = "",
+              const std::string& certPath = "",
+              const std::string& keyPath = "");
     ~TcpServer() override;
 
     // Starts the listener thread (non-blocking call)
@@ -22,13 +27,25 @@ public:
     void stop() override;
 
 private:
+    struct ClientSession {
+        int socketFd;
+        void* ssl; // SSL* wrapper
+    };
+
     int m_port;
     std::shared_ptr<IRpcHandler> m_rpcHandler;
     std::atomic<bool> m_running;
     int m_serverSocket;
     std::thread m_listenerThread;
     
-    std::vector<int> m_clientSockets;
+    bool m_useSsl;
+    bool m_useMtls;
+    std::string m_caPath;
+    std::string m_certPath;
+    std::string m_keyPath;
+    void* m_sslCtx; // SSL_CTX* pointer
+
+    std::vector<ClientSession> m_clientSessions;
     std::vector<std::thread> m_clientThreads;
     std::mutex m_clientsMutex;
 

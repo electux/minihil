@@ -1,0 +1,34 @@
+textview text {
+    background-color: #121214;
+    color: #00ff66;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.relay-card {
+    border: 1px solid #d0d0d5;
+    border-radius: 8px;
+    background-color: #f7f7f9;
+}
+
+.relay-card label {
+    color: #121214;
+}
+
+.relay-card:disabled label {
+    color: #7f8c8d;
+}
+
+.led-indicator {
+    font-size: 24px;
+}
+
+.relay-card label.led-on {
+    color: #2ecc71;
+    text-shadow: 0 0 10px #2ecc71, 0 0 20px #2ecc71;
+}
+
+.relay-card label.led-off {
+    color: #bdc3c7;
+    text-shadow: none;
+}

@@ -6,6 +6,12 @@
 #include <condition_variable>
 #include <chrono>
 #include <thread>
+#include <filesystem>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 #include "core/idevice_controller.hpp"
 #include "protocol/jsonrpc_router.hpp"
@@ -18,6 +24,8 @@ using ConcreteController = minihil::SilRelayController;
 #include "hardware/gpiod_relay_controller.hpp"
 using ConcreteController = minihil::GpiodRelayController;
 #endif
+
+namespace fs = std::filesystem;
 
 constexpr int PORT = 9000;
 
@@ -35,12 +43,258 @@ void signalHandler(int signum) {
     g_shutdownCV.notify_one();
 }
 
-int main() {
+bool add_ext(X509* cert, int nid, const char* value) {
+    X509_EXTENSION* ex = nullptr;
+    X509V3_CTX ctx;
+    X509V3_set_ctx_nodb(&ctx);
+    X509V3_set_ctx(&ctx, cert, cert, nullptr, nullptr, 0);
+    ex = X509V3_EXT_conf_nid(nullptr, &ctx, nid, const_cast<char*>(value));
+    if (!ex) return false;
+    X509_add_ext(cert, ex, -1);
+    X509_EXTENSION_free(ex);
+    return true;
+}
+
+bool add_ext_signed(X509* cert, X509* issuer, int nid, const char* value) {
+    X509_EXTENSION* ex = nullptr;
+    X509V3_CTX ctx;
+    X509V3_set_ctx_nodb(&ctx);
+    X509V3_set_ctx(&ctx, issuer, cert, nullptr, nullptr, 0);
+    ex = X509V3_EXT_conf_nid(nullptr, &ctx, nid, const_cast<char*>(value));
+    if (!ex) return false;
+    X509_add_ext(cert, ex, -1);
+    X509_EXTENSION_free(ex);
+    return true;
+}
+
+EVP_PKEY* generateKeyPair() {
+    EVP_PKEY* pkey = nullptr;
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+    if (!ctx) return nullptr;
+    if (EVP_PKEY_keygen_init(ctx) <= 0 ||
+        EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0 ||
+        EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        if (pkey) EVP_PKEY_free(pkey);
+        return nullptr;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
+bool writePrivateKey(const std::string& path, EVP_PKEY* pkey) {
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) return false;
+    bool ok = (PEM_write_PrivateKey(f, pkey, nullptr, nullptr, 0, nullptr, nullptr) > 0);
+    fclose(f);
+    return ok;
+}
+
+bool writeCert(const std::string& path, X509* x509) {
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) return false;
+    bool ok = (PEM_write_X509(f, x509) > 0);
+    fclose(f);
+    return ok;
+}
+
+bool generatePki(const std::string& caCertPath, const std::string& caKeyPath,
+                 const std::string& serverCertPath, const std::string& serverKeyPath,
+                 const std::string& clientCertPath, const std::string& clientKeyPath) {
+    std::cout << "[Main] Generating Root CA and certificates (Server & Client)..." << std::endl;
+
+    // 1. Generate Root CA
+    EVP_PKEY* caKey = generateKeyPair();
+    if (!caKey) return false;
+    X509* caCert = X509_new();
+    if (!caCert) {
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+    X509_set_version(caCert, 2); // V3
+    ASN1_INTEGER_set(X509_get_serialNumber(caCert), 1);
+    X509_gmtime_adj(X509_get_notBefore(caCert), 0);
+    X509_gmtime_adj(X509_get_notAfter(caCert), 315360000L); // 10 years
+    X509_set_pubkey(caCert, caKey);
+
+    X509_NAME* caName = X509_get_subject_name(caCert);
+    X509_NAME_add_entry_by_txt(caName, "C", MBSTRING_ASC, (const unsigned char*)"US", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(caName, "O", MBSTRING_ASC, (const unsigned char*)"Electux", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(caName, "CN", MBSTRING_ASC, (const unsigned char*)"MiniHIL Root CA", -1, -1, 0);
+    X509_set_issuer_name(caCert, caName);
+
+    add_ext(caCert, NID_basic_constraints, "critical,CA:TRUE");
+    add_ext(caCert, NID_key_usage, "critical,keyCertSign,cRLSign");
+
+    if (!X509_sign(caCert, caKey, EVP_sha256())) {
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+
+    // 2. Generate Server Certificate
+    EVP_PKEY* serverKey = generateKeyPair();
+    if (!serverKey) {
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+    X509* serverCert = X509_new();
+    if (!serverCert) {
+        EVP_PKEY_free(serverKey);
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+    X509_set_version(serverCert, 2);
+    ASN1_INTEGER_set(X509_get_serialNumber(serverCert), 2);
+    X509_gmtime_adj(X509_get_notBefore(serverCert), 0);
+    X509_gmtime_adj(X509_get_notAfter(serverCert), 31536000L); // 1 year
+    X509_set_pubkey(serverCert, serverKey);
+
+    X509_NAME* serverName = X509_get_subject_name(serverCert);
+    X509_NAME_add_entry_by_txt(serverName, "C", MBSTRING_ASC, (const unsigned char*)"US", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(serverName, "O", MBSTRING_ASC, (const unsigned char*)"Electux", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(serverName, "CN", MBSTRING_ASC, (const unsigned char*)"localhost", -1, -1, 0);
+    X509_set_issuer_name(serverCert, X509_get_subject_name(caCert));
+
+    add_ext_signed(serverCert, caCert, NID_basic_constraints, "CA:FALSE");
+    add_ext_signed(serverCert, caCert, NID_key_usage, "critical,digitalSignature,keyEncipherment");
+    add_ext_signed(serverCert, caCert, NID_ext_key_usage, "serverAuth");
+
+    if (!X509_sign(serverCert, caKey, EVP_sha256())) {
+        X509_free(serverCert);
+        EVP_PKEY_free(serverKey);
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+
+    // 3. Generate Client Certificate
+    EVP_PKEY* clientKey = generateKeyPair();
+    if (!clientKey) {
+        X509_free(serverCert);
+        EVP_PKEY_free(serverKey);
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+    X509* clientCert = X509_new();
+    if (!clientCert) {
+        EVP_PKEY_free(clientKey);
+        X509_free(serverCert);
+        EVP_PKEY_free(serverKey);
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+    X509_set_version(clientCert, 2);
+    ASN1_INTEGER_set(X509_get_serialNumber(clientCert), 3);
+    X509_gmtime_adj(X509_get_notBefore(clientCert), 0);
+    X509_gmtime_adj(X509_get_notAfter(clientCert), 31536000L); // 1 year
+    X509_set_pubkey(clientCert, clientKey);
+
+    X509_NAME* clientName = X509_get_subject_name(clientCert);
+    X509_NAME_add_entry_by_txt(clientName, "C", MBSTRING_ASC, (const unsigned char*)"US", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(clientName, "O", MBSTRING_ASC, (const unsigned char*)"Electux", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(clientName, "CN", MBSTRING_ASC, (const unsigned char*)"minihildesk", -1, -1, 0);
+    X509_set_issuer_name(clientCert, X509_get_subject_name(caCert));
+
+    add_ext_signed(clientCert, caCert, NID_basic_constraints, "CA:FALSE");
+    add_ext_signed(clientCert, caCert, NID_key_usage, "critical,digitalSignature");
+    add_ext_signed(clientCert, caCert, NID_ext_key_usage, "clientAuth");
+
+    if (!X509_sign(clientCert, caKey, EVP_sha256())) {
+        X509_free(clientCert);
+        EVP_PKEY_free(clientKey);
+        X509_free(serverCert);
+        EVP_PKEY_free(serverKey);
+        X509_free(caCert);
+        EVP_PKEY_free(caKey);
+        return false;
+    }
+
+    // Write keys & certs to disk
+    bool success = true;
+    success &= writePrivateKey(caKeyPath, caKey);
+    success &= writeCert(caCertPath, caCert);
+    success &= writePrivateKey(serverKeyPath, serverKey);
+    success &= writeCert(serverCertPath, serverCert);
+    success &= writePrivateKey(clientKeyPath, clientKey);
+    success &= writeCert(clientCertPath, clientCert);
+
+    X509_free(clientCert);
+    EVP_PKEY_free(clientKey);
+    X509_free(serverCert);
+    EVP_PKEY_free(serverKey);
+    X509_free(caCert);
+    EVP_PKEY_free(caKey);
+
+    if (success) {
+        std::cout << "[Main] Successfully generated full PKI certs:\n"
+                  << "  - CA: " << caCertPath << ", " << caKeyPath << "\n"
+                  << "  - Server: " << serverCertPath << ", " << serverKeyPath << "\n"
+                  << "  - Client: " << clientCertPath << ", " << clientKeyPath << std::endl;
+    } else {
+        std::cerr << "[Main] Error writing certificates/keys to disk." << std::endl;
+    }
+    return success;
+}
+
+int main(int argc, char* argv[]) {
+    bool useSsl = false;
+    bool useMtls = false;
+    std::string caCertPath = "ca.crt";
+    std::string caKeyPath = "ca.key";
+    std::string certPath = "server.crt";
+    std::string keyPath = "server.key";
+    std::string clientCertPath = "client.crt";
+    std::string clientKeyPath = "client.key";
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--ssl") {
+            useSsl = true;
+        } else if (arg == "--mtls") {
+            useSsl = true;
+            useMtls = true;
+        } else if (arg == "--ca" && i + 1 < argc) {
+            caCertPath = argv[++i];
+        } else if (arg == "--cert" && i + 1 < argc) {
+            certPath = argv[++i];
+        } else if (arg == "--key" && i + 1 < argc) {
+            keyPath = argv[++i];
+        } else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: minihild [options]\n"
+                      << "Options:\n"
+                      << "  --ssl           Enable SSL/TLS secure connection\n"
+                      << "  --mtls          Enable SSL/TLS and enforce Mutual TLS (mTLS) client verification\n"
+                      << "  --ca <path>     Path to CA certificate file (default: ca.crt)\n"
+                      << "  --cert <path>   Path to Server SSL certificate file (default: server.crt)\n"
+                      << "  --key <path>    Path to Server SSL private key file (default: server.key)\n"
+                      << "  -h, --help      Show this help message\n";
+            return 0;
+        }
+    }
+
     std::cout << "Starting minihild (MiniHIL POSIX C++ Daemon)..." << std::endl;
 
     // Register POSIX signal handlers
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
+    std::signal(SIGPIPE, SIG_IGN);
+
+    // Generate certificates if SSL is requested and files do not exist
+    if (useSsl) {
+        if (!fs::exists(caCertPath) || !fs::exists(caKeyPath) ||
+            !fs::exists(certPath) || !fs::exists(keyPath) ||
+            !fs::exists(clientCertPath) || !fs::exists(clientKeyPath)) {
+            if (!generatePki(caCertPath, caKeyPath, certPath, keyPath, clientCertPath, clientKeyPath)) {
+                std::cerr << "[Main] Fatal: Failed to generate PKI certificates." << std::endl;
+                return 1;
+            }
+        }
+    }
 
     // 1. Instantiate HAL / SIL Device Controller (DIP)
     std::shared_ptr<minihil::IDeviceController> controller = std::make_shared<ConcreteController>();
@@ -52,9 +306,7 @@ int main() {
     // 2. Instantiate Protocol Router
     auto router = std::make_shared<minihil::JsonRpcRouter>();
 
-    // 3. Register JSON-RPC Methods (Open/Closed Principle)
-    
-    // set_relay: { "relay_id": int [1-8], "state": bool }
+    // 3. Register JSON-RPC Methods
     router->registerMethod("set_relay", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
         if (!params.is_object() || !params.contains("relay_id") || !params.contains("state")) {
             return {{"code", -32602}, {"error", "Invalid params: 'relay_id' (integer) and 'state' (boolean) are required."}};
@@ -75,7 +327,6 @@ int main() {
         return {{"success", true}, {"relay_id", relayId}, {"state", state}};
     });
 
-    // get_relays: returns states of all 8 relays
     router->registerMethod("get_relays", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
         auto states = controller->getAllStates();
         nlohmann::json result = nlohmann::json::object();
@@ -85,8 +336,8 @@ int main() {
         return result;
     });
 
-    // 4. Instantiate Server and Inject Router Dependency (Dependency Inversion)
-    auto server = std::make_shared<minihil::TcpServer>(PORT, router);
+    // 4. Instantiate Server and Inject Router Dependency
+    auto server = std::make_shared<minihil::TcpServer>(PORT, router, useSsl, useMtls, caCertPath, certPath, keyPath);
 
     // 5. Start Server
     if (!server->start()) {

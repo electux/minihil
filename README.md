@@ -14,8 +14,20 @@ other information that should be provided before the tool is installed.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
-- [Installation](#installation)
-- [Dependencies](#dependencies)
+- [About minihild](#about-minihild)
+- [SIL (Software-in-the-Loop) Host Build](#sil-software-in-the-loop-host-build)
+  - [Prerequisites](#prerequisites)
+  - [Compile and Run](#compile-and-run)
+- [Yocto Image Build (Raspberry Pi Target)](#yocto-image-build-raspberry-pi-target)
+  - [Prerequisites](#prerequisites-1)
+  - [Compile target image](#compile-target-image)
+- [Flashing the Image to SD Card](#flashing-the-image-to-sd-card)
+  - [Option A: Using `bmaptool` (Recommended - Fast & Direct)](#option-a-using-bmaptool-recommended---fast--direct)
+  - [Option B: Using `dd` (Piped Decompression)](#option-b-using-dd-piped-decompression)
+- [Running on Raspberry Pi 3B+](#running-on-raspberry-pi-3b)
+- [JSON-RPC 2.0 API Specification](#json-rpc-20-api-specification)
+  - [`set_relay`](#set_relay)
+  - [`get_relays`](#get_relays)
 - [Docs](#docs)
 - [Copyright and licence](#copyright-and-licence)
 

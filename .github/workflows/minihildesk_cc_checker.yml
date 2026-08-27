@@ -1,28 +1,28 @@
-name: minihil C++ Checker
+name: minihildesk C++ Checker
 on:
   push:
     branches: [ master ]
     paths:
-      - 'sw/minihil/**/*.cc'
-      - 'sw/minihil/**/*.h'
+      - 'sw/minihildesk/**/*.cc'
+      - 'sw/minihildesk/**/*.h'
   pull_request:
     branches: [ master ]
     paths:
-      - 'sw/minihil/**/*.cc'
-      - 'sw/minihil/**/*.h'
+      - 'sw/minihildesk/**/*.cc'
+      - 'sw/minihildesk/**/*.h'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Check length of line in modules
         id: long_line_checker
         run: |
           echo "Checking the length of lines in modules"
           modules_ok=0
-          files=($(find sw/minihil/ -type f \( -name '*.cc' -o -name '*.h' \)))
+          files=($(find sw/minihildesk/ -type f \( -name '*.cc' -o -name '*.h' \)))
           for f in "${files[@]}"; do
             line_length=$(wc -L < "${f}")
             echo "${f} : $line_length"
@@ -31,13 +31,13 @@ jobs:
             fi
           done
           [[ $modules_ok -eq 0 ]] && echo "All modules are good" || exit 1
-          
+
       - name: Check number of lines in modules
         id: num_line_checker
         run: |
           echo "Checking the number of lines in modules"
           modules_ok=0
-          files=($(find sw/minihil/ -type f \( -name '*.cc' -o -name '*.h' \)))
+          files=($(find sw/minihildesk/ -type f \( -name '*.cc' -o -name '*.h' \)))
           for f in "${files[@]}"; do
             line_count=$(wc -l < "${f}")
             echo "${f} : $line_count"

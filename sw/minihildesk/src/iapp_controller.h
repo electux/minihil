@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// relay_widget.h
+/// iapp_controller.h
 /// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
 ///
 /// minihildesk is free software: you can redistribute it and/or modify it
@@ -19,38 +19,38 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <gtkmm/box.h>
-#include <gtkmm/frame.h>
-#include <gtkmm/label.h>
-#include <gtkmm/switch.h>
 #include <sigc++/sigc++.h>
+#include <string>
 
-namespace minihildesk::View {
+namespace minihildesk {
+namespace Config {
+class IConfigManager;
+}
+namespace Network {
+class ITcpClient;
+}
 
-class RelayWidget : public Gtk::Frame {
+class IAppController {
 public:
-  explicit RelayWidget(int relayId);
-  ~RelayWidget() override = default;
+  virtual ~IAppController() = default;
 
-  void updateState(bool active);
-  bool getState() const;
+  virtual Network::ITcpClient &getClient() = 0;
 
-  sigc::signal<void(int, bool)> &signal_toggled() { return m_signalToggled; }
+  virtual void start() = 0;
+  virtual void stop() = 0;
 
-private:
-  bool onStateSet(bool state);
+  virtual void requestConnect(const std::string &ip, int port, bool useSsl,
+                              bool useMtls) = 0;
+  virtual void requestDisconnect() = 0;
+  virtual bool isConnected() const = 0;
 
-  int m_relayId;
-  bool m_active{false};
-  bool m_updating{false};
+  virtual void toggleRelay(int relayId, bool state) = 0;
+  virtual void queryAllRelays() = 0;
 
-  Gtk::Box m_box;
-  Gtk::Box m_headerBox;
-  Gtk::Label m_titleLabel;
-  Gtk::Label m_indicatorLabel;
-  Gtk::Switch m_switch;
+  virtual sigc::signal<void(const std::string &)> &signal_log() = 0;
+  virtual sigc::signal<void(int, bool)> &signal_relay_state() = 0;
+  virtual sigc::signal<void(bool)> &signal_connection_state() = 0;
 
-  sigc::signal<void(int, bool)> m_signalToggled;
+  virtual Config::IConfigManager &getConfig() = 0;
 };
-
-} // namespace minihildesk::View
+} // namespace minihildesk

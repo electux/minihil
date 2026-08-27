@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// relay_widget.h
+/// iconfig_manager.h
 /// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
 ///
 /// minihildesk is free software: you can redistribute it and/or modify it
@@ -19,38 +19,28 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <gtkmm/box.h>
-#include <gtkmm/frame.h>
-#include <gtkmm/label.h>
-#include <gtkmm/switch.h>
-#include <sigc++/sigc++.h>
+#include <string>
 
-namespace minihildesk::View {
-
-class RelayWidget : public Gtk::Frame {
+namespace minihildesk::Config {
+class IConfigManager {
 public:
-  explicit RelayWidget(int relayId);
-  ~RelayWidget() override = default;
+  virtual ~IConfigManager() = default;
 
-  void updateState(bool active);
-  bool getState() const;
+  virtual bool load() = 0;
+  virtual bool save() const = 0;
+  virtual void defaultConfigStore() = 0;
+  virtual void populateDefaults() = 0;
 
-  sigc::signal<void(int, bool)> &signal_toggled() { return m_signalToggled; }
+  virtual std::string getIp() const = 0;
+  virtual void setIp(const std::string &ip) = 0;
 
-private:
-  bool onStateSet(bool state);
+  virtual int getPort() const = 0;
+  virtual void setPort(int port) = 0;
 
-  int m_relayId;
-  bool m_active{false};
-  bool m_updating{false};
+  virtual bool getUseSsl() const = 0;
+  virtual void setUseSsl(bool useSsl) = 0;
 
-  Gtk::Box m_box;
-  Gtk::Box m_headerBox;
-  Gtk::Label m_titleLabel;
-  Gtk::Label m_indicatorLabel;
-  Gtk::Switch m_switch;
-
-  sigc::signal<void(int, bool)> m_signalToggled;
+  virtual bool getUseMtls() const = 0;
+  virtual void setUseMtls(bool useMtls) = 0;
 };
-
-} // namespace minihildesk::View
+} // namespace minihildesk::Config

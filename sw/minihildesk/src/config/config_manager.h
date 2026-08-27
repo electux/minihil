@@ -1,34 +1,57 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+///
+/// config_manager.h
+/// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
+///
+/// minihildesk is free software: you can redistribute it and/or modify it
+/// under the terms of the GNU General Public License as published by the
+/// Free Software Foundation, either version 3 of the License, or
+/// (at your option) any later version.
+///
+/// minihildesk is distributed in the hope that it will be useful, but
+/// WITHOUT ANY WARRANTY; without even the implied warranty of
+/// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+/// See the GNU General Public License for more details.
+///
+/// You should have received a copy of the GNU General Public License along
+/// with this program. If not, see <http://www.gnu.org/licenses/>.
+///
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
+
+#include <config/iconfig_manager.h>
 #include <string>
 
-namespace minihildesk {
+namespace minihildesk::Config {
 
-class ConfigManager {
+class ConfigManager : public IConfigManager {
 public:
-    ConfigManager();
-    ~ConfigManager() = default;
+  ConfigManager();
+  ~ConfigManager() override = default;
 
-    bool load();
-    bool save() const;
+  bool load() override;
+  bool save() const override;
+  void defaultConfigStore() override;
+  void populateDefaults() override;
 
-    std::string getIp() const { return m_ip; }
-    void setIp(const std::string& ip) { m_ip = ip; }
+  std::string getIp() const override { return m_ip; }
+  void setIp(const std::string &ip) override { m_ip = ip; }
 
-    int getPort() const { return m_port; }
-    void setPort(int port) { m_port = port; }
+  int getPort() const override { return m_port; }
+  void setPort(int port) override { m_port = port; }
 
-    bool getUseSsl() const { return m_useSsl; }
-    void setUseSsl(bool useSsl) { m_useSsl = useSsl; }
+  bool getUseSsl() const override { return m_useSsl; }
+  void setUseSsl(bool useSsl) override { m_useSsl = useSsl; }
 
-    bool getUseMtls() const { return m_useMtls; }
-    void setUseMtls(bool useMtls) { m_useMtls = useMtls; }
+  bool getUseMtls() const override { return m_useMtls; }
+  void setUseMtls(bool useMtls) override { m_useMtls = useMtls; }
 
 private:
-    std::string m_ip{"127.0.0.1"};
-    int m_port{9000};
-    bool m_useSsl{false};
-    bool m_useMtls{false};
-    std::string getConfigPath() const;
+  std::string m_ip;
+  int m_port;
+  bool m_useSsl;
+  bool m_useMtls;
+  std::string getConfigPath() const;
 };
 
-} // namespace minihildesk
+} // namespace minihildesk::Config

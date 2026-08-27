@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// relay_widget.h
+/// app_controller_factory.h
 /// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
 ///
 /// minihildesk is free software: you can redistribute it and/or modify it
@@ -19,38 +19,18 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <gtkmm/box.h>
-#include <gtkmm/frame.h>
-#include <gtkmm/label.h>
-#include <gtkmm/switch.h>
-#include <sigc++/sigc++.h>
+#include <memory>
 
-namespace minihildesk::View {
+namespace minihildesk {
+    class IAppController;
+    namespace Config {
+        class IConfigManager;
+    }
+    namespace Network {
+        class ITcpClient;
+    }
 
-class RelayWidget : public Gtk::Frame {
-public:
-  explicit RelayWidget(int relayId);
-  ~RelayWidget() override = default;
-
-  void updateState(bool active);
-  bool getState() const;
-
-  sigc::signal<void(int, bool)> &signal_toggled() { return m_signalToggled; }
-
-private:
-  bool onStateSet(bool state);
-
-  int m_relayId;
-  bool m_active{false};
-  bool m_updating{false};
-
-  Gtk::Box m_box;
-  Gtk::Box m_headerBox;
-  Gtk::Label m_titleLabel;
-  Gtk::Label m_indicatorLabel;
-  Gtk::Switch m_switch;
-
-  sigc::signal<void(int, bool)> m_signalToggled;
-};
-
-} // namespace minihildesk::View
+std::unique_ptr<IAppController>
+createAppController(std::unique_ptr<Config::IConfigManager> config,
+                    std::unique_ptr<Network::ITcpClient> client);
+} // namespace minihildesk

@@ -12,11 +12,7 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
 # Find nlohmann_json
 find_package(nlohmann_json REQUIRED)
 
-# Include directories
-include_directories(
-    src
-    ${GTKMM_INCLUDE_DIRS}
-)
+# Include directories are configured per-target below.
 
 # Find glib-compile-resources
 find_program(GLIB_COMPILE_RESOURCES glib-compile-resources REQUIRED)
@@ -40,6 +36,12 @@ file(GLOB_RECURSE SOURCES
 list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/resources.cc)
 
 add_executable(minihildesk ${SOURCES})
+
+# Target-specific include directories
+target_include_directories(minihildesk PRIVATE
+    src
+    ${GTKMM_INCLUDE_DIRS}
+)
 
 target_compile_options(minihildesk PRIVATE
     -Wall

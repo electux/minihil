@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// relay_widget.h
+/// itcp_client.h
 /// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
 ///
 /// minihildesk is free software: you can redistribute it and/or modify it
@@ -19,38 +19,20 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <gtkmm/box.h>
-#include <gtkmm/frame.h>
-#include <gtkmm/label.h>
-#include <gtkmm/switch.h>
-#include <sigc++/sigc++.h>
+#include <string>
 
-namespace minihildesk::View {
-
-class RelayWidget : public Gtk::Frame {
+namespace minihildesk::Network {
+class ITcpClient {
 public:
-  explicit RelayWidget(int relayId);
-  ~RelayWidget() override = default;
+  virtual ~ITcpClient() = default;
 
-  void updateState(bool active);
-  bool getState() const;
+  virtual bool connect(const std::string &ip, int port, bool useSsl = false,
+                       bool useMtls = false) = 0;
+  virtual void disconnect() = 0;
+  virtual void shutdownSocket() = 0;
+  virtual bool isOpen() const = 0;
 
-  sigc::signal<void(int, bool)> &signal_toggled() { return m_signalToggled; }
-
-private:
-  bool onStateSet(bool state);
-
-  int m_relayId;
-  bool m_active{false};
-  bool m_updating{false};
-
-  Gtk::Box m_box;
-  Gtk::Box m_headerBox;
-  Gtk::Label m_titleLabel;
-  Gtk::Label m_indicatorLabel;
-  Gtk::Switch m_switch;
-
-  sigc::signal<void(int, bool)> m_signalToggled;
+  virtual bool send(const std::string &message) = 0;
+  virtual std::string receiveLine() = 0; // reads until '\n'
 };
-
-} // namespace minihildesk::View
+} // namespace minihildesk::Network

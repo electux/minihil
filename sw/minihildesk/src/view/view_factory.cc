@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// relay_widget.h
+/// view_factory.cc
 /// Copyright (C) 2025 - 2026 Vladimir Roncevic <elektron.ronca@gmail.com>
 ///
 /// minihildesk is free software: you can redistribute it and/or modify it
@@ -17,40 +17,13 @@
 /// with this program. If not, see <http://www.gnu.org/licenses/>.
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma once
-
-#include <gtkmm/box.h>
-#include <gtkmm/frame.h>
-#include <gtkmm/label.h>
-#include <gtkmm/switch.h>
-#include <sigc++/sigc++.h>
+#include <iapp_controller.h>
+#include <view/home.h>
+#include <view/relay_widget.h>
+#include <view/view_factory.h>
 
 namespace minihildesk::View {
-
-class RelayWidget : public Gtk::Frame {
-public:
-  explicit RelayWidget(int relayId);
-  ~RelayWidget() override = default;
-
-  void updateState(bool active);
-  bool getState() const;
-
-  sigc::signal<void(int, bool)> &signal_toggled() { return m_signalToggled; }
-
-private:
-  bool onStateSet(bool state);
-
-  int m_relayId;
-  bool m_active{false};
-  bool m_updating{false};
-
-  Gtk::Box m_box;
-  Gtk::Box m_headerBox;
-  Gtk::Label m_titleLabel;
-  Gtk::Label m_indicatorLabel;
-  Gtk::Switch m_switch;
-
-  sigc::signal<void(int, bool)> m_signalToggled;
-};
-
+std::unique_ptr<IHomeView> createHomeView(IAppController &controller) {
+  return std::make_unique<AppHome>(controller);
+}
 } // namespace minihildesk::View

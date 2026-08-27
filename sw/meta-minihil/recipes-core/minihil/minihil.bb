@@ -12,9 +12,9 @@ SRC_URI = "file://minihil"
 S = "${WORKDIR}/minihil"
 
 # Dependencies
-DEPENDS = "libgpiod nlohmann-json"
+DEPENDS = "libgpiod nlohmann-json openssl"
 
-inherit cmake systemd
+inherit cmake pkgconfig systemd
 
 # Package the systemd unit
 SYSTEMD_SERVICE:${PN} = "minihil.service"

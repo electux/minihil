@@ -3,14 +3,14 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'sw/minihil/**/*.cpp'
-      - 'sw/minihil/**/*.hpp'
+      - 'sw/minihil/**/*.cc'
+      - 'sw/minihil/**/*.h'
       - 'sw/minihil/CMakeLists.txt'
   pull_request:
     branches: [ master ]
     paths:
-      - 'sw/minihil/**/*.cpp'
-      - 'sw/minihil/**/*.hpp'
+      - 'sw/minihil/**/*.cc'
+      - 'sw/minihil/**/*.h'
       - 'sw/minihil/CMakeLists.txt'
 
 jobs:

@@ -6,14 +6,28 @@ The README is used to introduce the tool and provide instructions on
 how to install the tool, any machine dependencies it may have and any
 other information that should be provided before the tool is installed.
 
-[![minihil C++ Checker](https://github.com/electux/minihil/actions/workflows/minihil_cc_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihil_cc_checker.yml) [![minihil Build Checker (SIL)](https://github.com/electux/minihil/actions/workflows/minihil_build_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihil_build_checker.yml) [![GitHub issues open](https://img.shields.io/github/issues/electux/minihil.svg)](https://github.com/electux/minihil/issues) [![GitHub contributors](https://img.shields.io/github/contributors/electux/minihil.svg)](https://github.com/electux/minihil/graphs/contributors)
+[![minihil C++ Checker](https://github.com/electux/minihil/actions/workflows/minihil_cc_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihil_cc_checker.yml) [![minihil Build Checker (SIL)](https://github.com/electux/minihil/actions/workflows/minihil_build_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihil_build_checker.yml) [![minihil TOC](https://github.com/electux/minihil/actions/workflows/minihil_toc.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihil_toc.yml)
+[![minihildesk C++ Checker](https://github.com/electux/minihil/actions/workflows/minihildesk_cc_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihildesk_cc_checker.yml) [![minihildesk Build Checker (SIL)](https://github.com/electux/minihil/actions/workflows/minihildesk_build_checker.yml/badge.svg)](https://github.com/electux/minihil/actions/workflows/minihildesk_build_checker.yml)
+[![GitHub issues open](https://img.shields.io/github/issues/electux/minihil.svg)](https://github.com/electux/minihil/issues) [![GitHub contributors](https://img.shields.io/github/contributors/electux/minihil.svg)](https://github.com/electux/minihil/graphs/contributors)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
-- [Installation](#installation)
-- [Dependencies](#dependencies)
+- [About minihild](#about-minihild)
+- [SIL (Software-in-the-Loop) Host Build](#sil-software-in-the-loop-host-build)
+  - [Prerequisites](#prerequisites)
+  - [Compile and Run](#compile-and-run)
+- [Yocto Image Build (Raspberry Pi Target)](#yocto-image-build-raspberry-pi-target)
+  - [Prerequisites](#prerequisites-1)
+  - [Compile target image](#compile-target-image)
+- [Flashing the Image to SD Card](#flashing-the-image-to-sd-card)
+  - [Option A: Using `bmaptool` (Recommended - Fast & Direct)](#option-a-using-bmaptool-recommended---fast--direct)
+  - [Option B: Using `dd` (Piped Decompression)](#option-b-using-dd-piped-decompression)
+- [Running on Raspberry Pi 3B+](#running-on-raspberry-pi-3b)
+- [JSON-RPC 2.0 API Specification](#json-rpc-20-api-specification)
+  - [`set_relay`](#set_relay)
+  - [`get_relays`](#get_relays)
 - [Docs](#docs)
 - [Copyright and licence](#copyright-and-licence)
 
@@ -67,6 +81,60 @@ source sw/setup-env.sh
 bitbake minihil-image
 ```
 This compiles the C++ application, bundles the systemd daemon config (`minihil.service`) to start automatically on boot, and outputs a flashable image.
+
+---
+
+### Flashing the Image to SD Card
+
+The Yocto build generates a flashable `.wic.bz2` image in the deployment directory:
+`sw/build-minihil/tmp/deploy/images/raspberrypi3-64/minihil-image-raspberrypi3-64.rootfs.wic.bz2`
+
+Identify your SD card's device name (e.g. `/dev/sdX` or `/dev/mmcblkX`) using `lsblk` or `dmesg`.
+
+> [!WARNING]
+> Double-check the target device name before flashing! Writing to the wrong disk can destroy data on your host system.
+
+Before flashing, ensure that all partitions on the target SD card are unmounted (otherwise you will get a "Device or resource busy" error):
+```bash
+sudo umount /dev/sdX* 2>/dev/null || true
+```
+
+#### Option A: Using `bmaptool` (Recommended - Fast & Direct)
+`bmaptool` natively supports compressed images and will automatically decompress the Yocto symlink on-the-fly.
+```bash
+# Flash directly (replace /dev/sdX with your SD card device)
+sudo bmaptool copy sw/build-minihil/tmp/deploy/images/raspberrypi3-64/minihil-image-raspberrypi3-64.rootfs.wic.bz2 /dev/sdX
+```
+
+#### Option B: Using `dd` (Piped Decompression)
+To avoid modifying the Yocto symlink files and save host disk space, decompress the image on-the-fly and pipe it directly to `dd`:
+```bash
+# Decompress on-the-fly and flash (replace /dev/sdX with your SD card device)
+bzcat sw/build-minihil/tmp/deploy/images/raspberrypi3-64/minihil-image-raspberrypi3-64.rootfs.wic.bz2 | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+```
+
+---
+
+### Running on Raspberry Pi 3B+
+
+1. **Boot the board**: Insert the flashed SD card into your Raspberry Pi 3B+ and power it on.
+2. **Access the console**:
+   - **Via SSH**: Connect as `root` using the default password `root`:
+     ```bash
+     ssh root@<rpi-ip-address>
+     ```
+   - **Via Serial UART**: Connect a USB-to-UART adapter to the Raspberry Pi GPIO header (TX on pin 8, RX on pin 10, GND on pin 6). Access the serial interface using `picocom` or `minicom` (enabled with `115200` baud rate by `ENABLE_UART = "1"` in `local.conf`):
+     ```bash
+     picocom -b 115200 /dev/ttyUSB0
+     ```
+3. **Verify the Daemon**: Check that the `minihil` server starts automatically on boot:
+   ```bash
+   systemctl status minihil
+   ```
+4. **Test the JSON-RPC interface locally**: Send a command to port 9000 to query the relay states:
+   ```bash
+   echo '{"jsonrpc": "2.0", "method": "get_relays", "id": 1}' | nc localhost 9000
+   ```
 
 ---
 

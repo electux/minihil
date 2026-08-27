@@ -8,7 +8,7 @@ namespace minihil {
 
 struct GpiodRelayController::Impl {
     std::unique_ptr<::gpiod::chip> chip;
-    ::gpiod::line_request request;
+    std::unique_ptr<::gpiod::line_request> request;
 };
 
 GpiodRelayController::GpiodRelayController()
@@ -67,7 +67,12 @@ bool GpiodRelayController::init() {
         ::gpiod::request_config req_cfg;
         req_cfg.set_consumer("minihild");
 
-        m_impl->request = m_impl->chip->request_lines(req_cfg, line_cfg);
+        m_impl->request = std::make_unique<::gpiod::line_request>(
+            m_impl->chip->prepare_request()
+                .set_request_config(req_cfg)
+                .set_line_config(line_cfg)
+                .do_request()
+        );
         std::cout << "[GpiodRelayController] GPIO lines requested and configured as OUTPUT." << std::endl;
         return true;
     } catch (const std::exception& e) {
@@ -81,8 +86,9 @@ bool GpiodRelayController::setRelay(int relayId, bool state) {
     
     m_states[relayId] = state;
     try {
+        if (!m_impl->request) return false;
         unsigned int offset = m_relayGpioMap.at(relayId);
-        m_impl->request.set_value(offset, state ? ::gpiod::line::value::INACTIVE : ::gpiod::line::value::ACTIVE);
+        m_impl->request->set_value(offset, state ? ::gpiod::line::value::INACTIVE : ::gpiod::line::value::ACTIVE);
         return true;
     } catch (const std::exception& e) {
         std::cerr << "[GpiodRelayController] Error setting relay " << relayId << ": " << e.what() << std::endl;

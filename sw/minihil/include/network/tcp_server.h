@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/iserver.hpp"
-#include "core/irpc_handler.hpp"
+#include "core/iserver.h"
+#include "core/irpc_handler.h"
 #include <memory>
 #include <atomic>
 #include <thread>

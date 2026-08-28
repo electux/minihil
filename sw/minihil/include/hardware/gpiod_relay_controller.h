@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/idevice_controller.hpp"
+#include "core/base_relay_controller.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -8,22 +8,19 @@
 
 namespace minihil {
 
-class GpiodRelayController : public IDeviceController {
+class GpiodRelayController : public BaseRelayController {
 public:
     GpiodRelayController();
     ~GpiodRelayController() override;
 
-    bool init() override;
-    bool setRelay(int relayId, bool state) override;
-    bool getRelay(int relayId) const override;
-    std::map<int, bool> getAllStates() const override;
+protected:
+    bool initHardware() override;
+    bool setRelayPhysical(int relayId, bool state) override;
 
 private:
     std::string m_chipPath;
     // Map from Relay ID (1-8) to BCM pin offset
     std::map<int, unsigned int> m_relayGpioMap;
-    // Cache for relay states
-    mutable std::map<int, bool> m_states;
 
     struct Impl;
     std::unique_ptr<Impl> m_impl;

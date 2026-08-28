@@ -18,15 +18,16 @@ include_directories(include)
 
 # Source files (explicitly declared)
 set(SOURCES
-    src/main.cpp
-    src/network/tcp_server.cpp
-    src/protocol/jsonrpc_router.cpp
+    src/main.cc
+    src/network/tcp_server.cc
+    src/protocol/jsonrpc_router.cc
+    src/core/base_relay_controller.cc
 )
 
 if(GPIODCXX_FOUND)
-    list(APPEND SOURCES src/hardware/gpiod_relay_controller.cpp)
+    list(APPEND SOURCES src/hardware/gpiod_relay_controller.cc)
 else()
-    list(APPEND SOURCES src/sil/sil_relay_controller.cpp)
+    list(APPEND SOURCES src/sil/sil_relay_controller.cc)
 endif()
 
 # Executable

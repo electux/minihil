@@ -43,7 +43,7 @@ public:
   bool isOpen() const override;
 
   bool send(const std::string &message) override;
-  std::string receiveLine() override; // reads until '\n'
+  std::string receiveLine() override;
 
 private:
   int m_socketFd{-1};

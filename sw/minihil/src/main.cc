@@ -13,15 +13,15 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
-#include "core/idevice_controller.hpp"
-#include "protocol/jsonrpc_router.hpp"
-#include "network/tcp_server.hpp"
+#include "core/idevice_controller.h"
+#include "protocol/jsonrpc_router.h"
+#include "network/tcp_server.h"
 
 #ifdef MOCK_GPIO
-#include "sil/sil_relay_controller.hpp"
+#include "sil/sil_relay_controller.h"
 using ConcreteController = minihil::SilRelayController;
 #else
-#include "hardware/gpiod_relay_controller.hpp"
+#include "hardware/gpiod_relay_controller.h"
 using ConcreteController = minihil::GpiodRelayController;
 #endif
 
@@ -334,6 +334,83 @@ int main(int argc, char* argv[]) {
             result[std::to_string(relayId)] = state;
         }
         return result;
+    });
+
+    router->registerMethod("start_timer", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
+        if (!params.is_object() || !params.contains("relay_id") || !params.contains("seconds")) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' (integer) and 'seconds' (integer) are required."}};
+        }
+
+        int relayId = params["relay_id"].get<int>();
+        uint32_t seconds = params["seconds"].get<uint32_t>();
+
+        if (relayId < 1 || relayId > 8) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' must be between 1 and 8."}};
+        }
+
+        bool ok = controller->startTimer(relayId, seconds);
+        if (!ok) {
+            return {{"code", -32603}, {"error", "Internal error: Failed to start timer."}};
+        }
+
+        return {{"success", true}, {"relay_id", relayId}, {"seconds", seconds}};
+    });
+
+    router->registerMethod("start_pulse", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
+        if (!params.is_object() || !params.contains("relay_id") || !params.contains("duration_ms")) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' (integer) and 'duration_ms' (integer) are required."}};
+        }
+
+        int relayId = params["relay_id"].get<int>();
+        uint32_t durationMs = params["duration_ms"].get<uint32_t>();
+
+        if (relayId < 1 || relayId > 8) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' must be between 1 and 8."}};
+        }
+
+        bool ok = controller->startPulse(relayId, durationMs);
+        if (!ok) {
+            return {{"code", -32603}, {"error", "Internal error: Failed to start pulse."}};
+        }
+
+        return {{"success", true}, {"relay_id", relayId}, {"duration_ms", durationMs}};
+    });
+
+    router->registerMethod("start_blink", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
+        if (!params.is_object() || !params.contains("relay_id") || !params.contains("on_ms") || !params.contains("off_ms") || !params.contains("count")) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' (integer), 'on_ms' (integer), 'off_ms' (integer), and 'count' (integer) are required."}};
+        }
+
+        int relayId = params["relay_id"].get<int>();
+        uint32_t onMs = params["on_ms"].get<uint32_t>();
+        uint32_t offMs = params["off_ms"].get<uint32_t>();
+        uint32_t count = params["count"].get<uint32_t>();
+
+        if (relayId < 1 || relayId > 8) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' must be between 1 and 8."}};
+        }
+
+        bool ok = controller->startBlink(relayId, onMs, offMs, count);
+        if (!ok) {
+            return {{"code", -32603}, {"error", "Internal error: Failed to start blink."}};
+        }
+
+        return {{"success", true}, {"relay_id", relayId}, {"on_ms", onMs}, {"off_ms", offMs}, {"count", count}};
+    });
+
+    router->registerMethod("get_relay_status", [controller](const nlohmann::json& params, const nlohmann::json& id) -> nlohmann::json {
+        if (!params.is_object() || !params.contains("relay_id")) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' (integer) is required."}};
+        }
+
+        int relayId = params["relay_id"].get<int>();
+
+        if (relayId < 1 || relayId > 8) {
+            return {{"code", -32602}, {"error", "Invalid params: 'relay_id' must be between 1 and 8."}};
+        }
+
+        std::string status = controller->getRelayStatus(relayId);
+        return {{"relay_id", relayId}, {"status", status}};
     });
 
     // 4. Instantiate Server and Inject Router Dependency

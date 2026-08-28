@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/irpc_handler.hpp"
+#include "core/irpc_handler.h"
 #include <map>
 #include <string>
 #include <functional>

@@ -51,6 +51,10 @@ public:
   bool isConnected() const override;
 
   void toggleRelay(int relayId, bool state) override;
+  void startTimer(int relayId, uint32_t seconds) override;
+  void startPulse(int relayId, uint32_t durationMs) override;
+  void startBlink(int relayId, uint32_t onMs, uint32_t offMs,
+                  uint32_t count) override;
   void queryAllRelays() override;
 
   sigc::signal<void(const std::string &)> &signal_log() override {

@@ -45,6 +45,10 @@ public:
   virtual bool isConnected() const = 0;
 
   virtual void toggleRelay(int relayId, bool state) = 0;
+  virtual void startTimer(int relayId, uint32_t seconds) = 0;
+  virtual void startPulse(int relayId, uint32_t durationMs) = 0;
+  virtual void startBlink(int relayId, uint32_t onMs, uint32_t offMs,
+                          uint32_t count) = 0;
   virtual void queryAllRelays() = 0;
 
   virtual sigc::signal<void(const std::string &)> &signal_log() = 0;

@@ -1,34 +1,126 @@
-textview text {
+/* Main window and generic boxes */
+window {
     background-color: #121214;
-    color: #00ff66;
-    font-family: monospace;
-    font-size: 13px;
+    color: #ffffff;
+    font-family: "Ubuntu", "Segoe UI", sans-serif;
 }
 
+box {
+    background-color: #121214;
+}
+
+/* Monospace terminal logs at bottom */
+textview, textview text, textview.view, textview.view text {
+    background-color: #0b0b0c;
+    color: #00ff66;
+    font-family: "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 13px;
+    border-top: 1px solid #2e2e38;
+}
+
+/* Header bar layout styling */
+.connection-bar {
+    background-color: #1a1a1f;
+    border-bottom: 1px solid #2d2d35;
+    padding: 12px;
+}
+
+.connection-bar label {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Cards (Relay Widgets) */
 .relay-card {
-    border: 1px solid #d0d0d5;
-    border-radius: 8px;
-    background-color: #f7f7f9;
+    border: 2px solid #2a2a32;
+    border-radius: 12px;
+    background-color: #1a1a1f;
+    transition: all 0.3s ease;
+}
+
+/* Glowing active border when relay is ON */
+.relay-card.active-relay {
+    border-color: #2ecc71;
 }
 
 .relay-card label {
-    color: #121214;
+    color: #ffffff;
+    font-weight: normal;
 }
 
-.relay-card:disabled label {
-    color: #7f8c8d;
+/* Sub-labels (e.g. descriptions, input labels) */
+.relay-card label.desc-text {
+    color: #8c8c9e;
 }
 
+/* LED Indicators */
 .led-indicator {
-    font-size: 24px;
+    font-size: 20px;
 }
 
 .relay-card label.led-on {
     color: #2ecc71;
-    text-shadow: 0 0 10px #2ecc71, 0 0 20px #2ecc71;
+    text-shadow: 0 0 8px #2ecc71, 0 0 16px #2ecc71;
 }
 
 .relay-card label.led-off {
-    color: #bdc3c7;
-    text-shadow: none;
+    color: #e74c3c;
+    text-shadow: 0 0 8px #e74c3c;
+}
+
+/* GTK Input styling */
+entry, spinbutton, combobox {
+    background-color: #25252b;
+    border: 1px solid #3e3e4a;
+    border-radius: 6px;
+    color: #ffffff;
+    padding: 6px;
+}
+
+entry:focus, spinbutton:focus, combobox:focus {
+    border-color: #3498db;
+}
+
+/* Button stylings */
+button {
+    background-color: #34495e;
+    border: 1px solid #2c3e50;
+    border-radius: 6px;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 6px 16px;
+}
+
+button:hover {
+    background-color: #415b76;
+}
+
+button:active {
+    background-color: #2c3e50;
+}
+
+/* Green connect/disconnect button */
+.connect-btn {
+    background-color: #2ecc71;
+    border-color: #27ae60;
+    color: #ffffff;
+}
+
+.connect-btn:hover {
+    background-color: #27ae60;
+}
+
+.connect-btn:active {
+    background-color: #219653;
+}
+
+/* Switch Custom layout */
+switch {
+    background-color: #3e3e4a;
+    border: 1px solid #2d2d35;
+    border-radius: 14px;
+}
+
+switch:checked {
+    background-color: #2ecc71;
 }

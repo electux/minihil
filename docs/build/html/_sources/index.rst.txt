@@ -55,6 +55,38 @@ Compile and Run
 The daemon will boot in SIL mode and print:
 ``[SilRelayController] Software-in-the-Loop simulation initialized.``
 
+minihildesk GUI Client
+----------------------
+
+**minihildesk** is a premium GTKmm-based C++ desktop GUI client designed to connect to the ``minihild`` server (either running on a Raspberry Pi target or locally in SIL mock mode).
+
+It features:
+
+* A connection bar supporting standard TCP connection, **SSL/TLS secure connection**, and **Mutual TLS (mTLS) client verification**.
+* A grid of 8 Relay Control Cards displaying status via glowing LED indicators and active green borders.
+* Multi-mode relay control per channel: **Toggle** (manual switch), **Timer** (seconds spin-input), **Pulse** (milliseconds spin-input up to 100,000 ms), and **Blink** (ON/OFF ms inputs and cycle count).
+* Automatic hardware safety auto-off logic: switching modes on an active channel immediately turns the relay OFF on the server before entering the new mode.
+* A monospace green log terminal at the bottom showcasing outgoing and incoming JSON-RPC traffic.
+
+Prerequisites
+~~~~~~~~~~~~~
+Install the GTKmm-4.0 development headers, OpenSSL, and JSON library:
+
+.. code-block:: bash
+
+   sudo apt-get install libgtkmm-4.0-dev libssl-dev nlohmann-json3-dev
+
+Compile and Run
+~~~~~~~~~~~~~~~
+.. code-block:: bash
+
+   # Configure and compile using CMake
+   cmake -B sw/minihildesk/build -S sw/minihildesk
+   cmake --build sw/minihildesk/build
+
+   # Start the desktop GUI app
+   ./sw/minihildesk/build/minihildesk
+
 Yocto Image Build (Raspberry Pi Target)
 ---------------------------------------
 
@@ -113,6 +145,70 @@ Query states of all 8 relay channels:
 
      {"jsonrpc": "2.0", "result": {"1": false, "2": false, "3": true, "4": false, "5": false, "6": false, "7": false, "8": false}, "id": 2}
 
+start_timer
+~~~~~~~~~~~
+Keep a relay active for a specific duration in seconds:
+
+* **Request**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "method": "start_timer", "params": {"relay_id": 2, "seconds": 10}, "id": 3}
+
+* **Response**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "result": {"relay_id": 2, "seconds": 10, "success": true}, "id": 3}
+
+start_pulse
+~~~~~~~~~~~
+Generate a single momentary pulse in milliseconds (up to 100,000 ms):
+
+* **Request**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "method": "start_pulse", "params": {"relay_id": 3, "duration_ms": 5000}, "id": 4}
+
+* **Response**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "result": {"relay_id": 3, "duration_ms": 5000, "success": true}, "id": 4}
+
+start_blink
+~~~~~~~~~~~
+Repeatedly cycle relay state ON and OFF:
+
+* **Request**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "method": "start_blink", "params": {"relay_id": 4, "on_ms": 1000, "off_ms": 1000, "count": 5}, "id": 5}
+
+* **Response**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "result": {"relay_id": 4, "on_ms": 1000, "off_ms": 1000, "count": 5, "success": true}, "id": 5}
+
+get_relay_status
+~~~~~~~~~~~~~~~~
+Query detailed diagnostic status and remaining time for a single channel:
+
+* **Request**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "method": "get_relay_status", "params": {"relay_id": 2}, "id": 6}
+
+* **Response**:
+
+  .. code-block:: json
+
+     {"jsonrpc": "2.0", "result": {"relay_id": 2, "status": "Channel 2: ON (Timer, rem: 8s)"}, "id": 6}
+
 Copyright and licence
 ----------------------
 
@@ -127,7 +223,4 @@ Copyright and licence
 Copyright (C) 2020 - 2026 by `electux.github.io/minihil <https://electux.github.io/minihil>`_
 
 .. image:: https://raw.githubusercontent.com/electux/minihil/master/docs/foundations.png
-   :alt: Raspberry Pi & GNOME Foundations
-   :width: 681px
-   :height: 100px
-
+   :alt: Foundations

@@ -69,11 +69,41 @@ cmake<span class="w"> </span>--build<span class="w"> </span>sw/minihil/build
 <code class="docutils literal notranslate"><span class="pre">[SilRelayController]</span> <span class="pre">Software-in-the-Loop</span> <span class="pre">simulation</span> <span class="pre">initialized.</span></code></p>
 </section>
 </section>
+<section id="minihildesk-gui-client">
+<h1>minihildesk GUI Client<a class="headerlink" href="#minihildesk-gui-client" title="Link to this heading">¶</a></h1>
+<p><strong>minihildesk</strong> is a premium GTKmm-based C++ desktop GUI client designed to connect to the <code class="docutils literal notranslate"><span class="pre">minihild</span></code> server (either running on a Raspberry Pi target or locally in SIL mock mode).</p>
+<p>It features:</p>
+<ul class="simple">
+<li><p>A connection bar supporting standard TCP connection, <strong>SSL/TLS secure connection</strong>, and <strong>Mutual TLS (mTLS) client verification</strong>.</p></li>
+<li><p>A grid of 8 Relay Control Cards displaying status via glowing LED indicators and active green borders.</p></li>
+<li><p>Multi-mode relay control per channel: <strong>Toggle</strong> (manual switch), <strong>Timer</strong> (seconds spin-input), <strong>Pulse</strong> (milliseconds spin-input up to 100,000 ms), and <strong>Blink</strong> (ON/OFF ms inputs and cycle count).</p></li>
+<li><p>Automatic hardware safety auto-off logic: switching modes on an active channel immediately turns the relay OFF on the server before entering the new mode.</p></li>
+<li><p>A monospace green log terminal at the bottom showcasing outgoing and incoming JSON-RPC traffic.</p></li>
+</ul>
+<section id="id1">
+<h2>Prerequisites<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<p>Install the GTKmm-4.0 development headers, OpenSSL, and JSON library:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libgtkmm-4.0-dev<span class="w"> </span>libssl-dev<span class="w"> </span>nlohmann-json3-dev
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h2>Compile and Run<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Configure and compile using CMake</span>
+cmake<span class="w"> </span>-B<span class="w"> </span>sw/minihildesk/build<span class="w"> </span>-S<span class="w"> </span>sw/minihildesk
+cmake<span class="w"> </span>--build<span class="w"> </span>sw/minihildesk/build
+
+<span class="c1"># Start the desktop GUI app</span>
+./sw/minihildesk/build/minihildesk
+</pre></div>
+</div>
+</section>
+</section>
 <section id="yocto-image-build-raspberry-pi-target">
 <h1>Yocto Image Build (Raspberry Pi Target)<a class="headerlink" href="#yocto-image-build-raspberry-pi-target" title="Link to this heading">¶</a></h1>
 <p>MiniHIL packages <code class="docutils literal notranslate"><span class="pre">minihild</span></code> into a custom Yocto Linux image (<code class="docutils literal notranslate"><span class="pre">minihil-image</span></code>) using <code class="docutils literal notranslate"><span class="pre">meta-raspberrypi</span></code> and Poky.</p>
-<section id="id1">
-<h2>Prerequisites<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<section id="id3">
+<h2>Prerequisites<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
 <p>Ensure your build host has all required packages for Yocto Scarthgap (refer to <code class="docutils literal notranslate"><span class="pre">sw/rpi-base-platform/README.md</span></code> for the list of packages).</p>
 </section>
 <section id="compile-target-image">
@@ -123,13 +153,76 @@ bitbake<span class="w"> </span>minihil-image
 </li>
 </ul>
 </section>
+<section id="start-timer">
+<h2>start_timer<a class="headerlink" href="#start-timer" title="Link to this heading">¶</a></h2>
+<p>Keep a relay active for a specific duration in seconds:</p>
+<ul>
+<li><p><strong>Request</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;start_timer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;seconds&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Response</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;seconds&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="start-pulse">
+<h2>start_pulse<a class="headerlink" href="#start-pulse" title="Link to this heading">¶</a></h2>
+<p>Generate a single momentary pulse in milliseconds (up to 100,000 ms):</p>
+<ul>
+<li><p><strong>Request</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;start_pulse&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5000</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Response</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="start-blink">
+<h2>start_blink<a class="headerlink" href="#start-blink" title="Link to this heading">¶</a></h2>
+<p>Repeatedly cycle relay state ON and OFF:</p>
+<ul>
+<li><p><strong>Request</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;start_blink&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;on_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;off_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Response</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;on_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;off_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="get-relay-status">
+<h2>get_relay_status<a class="headerlink" href="#get-relay-status" title="Link to this heading">¶</a></h2>
+<p>Query detailed diagnostic status and remaining time for a single channel:</p>
+<ul>
+<li><p><strong>Request</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;get_relay_status&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Response</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;jsonrpc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;relay_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Channel 2: ON (Timer, rem: 8s)&quot;</span><span class="p">},</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
 </section>
 <section id="copyright-and-licence">
 <h1>Copyright and licence<a class="headerlink" href="#copyright-and-licence" title="Link to this heading">¶</a></h1>
 <p><a class="reference external" href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" /></a> <a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a></p>
 <p>Copyright (C) 2020 - 2026 by <a class="reference external" href="https://electux.github.io/minihil">electux.github.io/minihil</a></p>
-<a class="reference internal image-reference" href="https://raw.githubusercontent.com/electux/minihil/master/docs/foundations.png"><img alt="Raspberry Pi &amp; GNOME Foundations" src="https://raw.githubusercontent.com/electux/minihil/master/docs/foundations.png" style="width: 681px; height: 100px;" />
-</a>
+<img alt="Foundations" src="https://raw.githubusercontent.com/electux/minihil/master/docs/foundations.png" />
 </section>
 
 
@@ -149,14 +242,23 @@ bitbake<span class="w"> </span>minihil-image
 <li><a class="reference internal" href="#compile-and-run">Compile and Run</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#yocto-image-build-raspberry-pi-target">Yocto Image Build (Raspberry Pi Target)</a><ul>
+<li><a class="reference internal" href="#minihildesk-gui-client">minihildesk GUI Client</a><ul>
 <li><a class="reference internal" href="#id1">Prerequisites</a></li>
+<li><a class="reference internal" href="#id2">Compile and Run</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#yocto-image-build-raspberry-pi-target">Yocto Image Build (Raspberry Pi Target)</a><ul>
+<li><a class="reference internal" href="#id3">Prerequisites</a></li>
 <li><a class="reference internal" href="#compile-target-image">Compile target image</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#json-rpc-2-0-api-specification">JSON-RPC 2.0 API Specification</a><ul>
 <li><a class="reference internal" href="#set-relay">set_relay</a></li>
 <li><a class="reference internal" href="#get-relays">get_relays</a></li>
+<li><a class="reference internal" href="#start-timer">start_timer</a></li>
+<li><a class="reference internal" href="#start-pulse">start_pulse</a></li>
+<li><a class="reference internal" href="#start-blink">start_blink</a></li>
+<li><a class="reference internal" href="#get-relay-status">get_relay_status</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#copyright-and-licence">Copyright and licence</a></li>

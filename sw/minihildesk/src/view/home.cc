@@ -28,11 +28,12 @@
 #include <sstream>
 #include <view/home.h>
 #include <view/relay_widget.h>
+#include <iostream>
 
 namespace {
 constexpr std::string_view cTitle{"minihildesk"};
-constexpr int cDefaultWidth{720};
-constexpr int cDefaultHeight{560};
+constexpr int cDefaultWidth{1080};
+constexpr int cDefaultHeight{820};
 constexpr std::string_view cStyleResourcePath{
     "/io/electux/minihildesk/style.css"};
 
@@ -83,7 +84,7 @@ AppHome::AppHome(IAppController &controller)
   cssProvider->load_from_resource(cStyleResourcePath.data());
   Gtk::StyleContext::add_provider_for_display(
       Gdk::Display::get_default(), cssProvider,
-      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+      GTK_STYLE_PROVIDER_PRIORITY_USER);
 
   // Header Setup
   m_ipEntry.set_text(m_controller.getConfig().getIp());
@@ -109,6 +110,9 @@ AppHome::AppHome(IAppController &controller)
   });
 
   m_headerBox.set_margin(cHeaderMargin);
+  m_headerBox.get_style_context()->add_class("connection-bar");
+  m_connectBtn.get_style_context()->add_class("connect-btn");
+
   m_headerBox.append(m_ipLabel);
   m_headerBox.append(m_ipEntry);
   m_headerBox.append(m_portLabel);
@@ -127,6 +131,12 @@ AppHome::AppHome(IAppController &controller)
     auto widget = std::make_unique<RelayWidget>(relayId);
     widget->signal_toggled().connect(
         sigc::mem_fun(*this, &AppHome::onRelayToggled));
+    widget->signal_timer_started().connect(
+        sigc::mem_fun(*this, &AppHome::onRelayTimerStarted));
+    widget->signal_pulse_triggered().connect(
+        sigc::mem_fun(*this, &AppHome::onRelayPulseTriggered));
+    widget->signal_blink_started().connect(
+        sigc::mem_fun(*this, &AppHome::onRelayBlinkStarted));
 
     int row = i / cRelayCols;
     int col = i % cRelayCols;
@@ -195,7 +205,24 @@ void AppHome::onConnectClicked() {
 }
 
 void AppHome::onRelayToggled(int relayId, bool state) {
+  std::cout << "[AppHome] onRelayToggled for relay " << relayId << ", state: " << state << std::endl;
   m_controller.toggleRelay(relayId, state);
+}
+
+void AppHome::onRelayTimerStarted(int relayId, uint32_t seconds) {
+  std::cout << "[AppHome] onRelayTimerStarted for relay " << relayId << ", seconds: " << seconds << std::endl;
+  m_controller.startTimer(relayId, seconds);
+}
+
+void AppHome::onRelayPulseTriggered(int relayId, uint32_t durationMs) {
+  std::cout << "[AppHome] onRelayPulseTriggered for relay " << relayId << ", durationMs: " << durationMs << std::endl;
+  m_controller.startPulse(relayId, durationMs);
+}
+
+void AppHome::onRelayBlinkStarted(int relayId, uint32_t onMs, uint32_t offMs,
+                                  uint32_t count) {
+  std::cout << "[AppHome] onRelayBlinkStarted for relay " << relayId << ", onMs: " << onMs << ", offMs: " << offMs << ", count: " << count << std::endl;
+  m_controller.startBlink(relayId, onMs, offMs, count);
 }
 
 void AppHome::postLogMessage(const std::string &msg) {

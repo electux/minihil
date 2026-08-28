@@ -1,6 +1,6 @@
 #ifdef GPIO_HARDWARE_SUPPORT
 
-#include "hardware/gpiod_relay_controller.hpp"
+#include "hardware/gpiod_relay_controller.h"
 #include <gpiod.hpp>
 #include <iostream>
 
@@ -20,15 +20,11 @@ GpiodRelayController::GpiodRelayController()
         {1, 5}, {2, 6}, {3, 13}, {4, 16},
         {5, 19}, {6, 20}, {7, 21}, {8, 26}
     };
-    
-    for (int i = 1; i <= 8; ++i) {
-        m_states[i] = false;
-    }
 }
 
 GpiodRelayController::~GpiodRelayController() = default;
 
-bool GpiodRelayController::init() {
+bool GpiodRelayController::initHardware() {
     try {
         std::string selectedChip = m_chipPath;
         bool chipOpened = false;
@@ -76,15 +72,12 @@ bool GpiodRelayController::init() {
         std::cout << "[GpiodRelayController] GPIO lines requested and configured as OUTPUT." << std::endl;
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "[GpiodRelayController] Exception in init: " << e.what() << std::endl;
+        std::cerr << "[GpiodRelayController] Exception in initHardware: " << e.what() << std::endl;
         return false;
     }
 }
 
-bool GpiodRelayController::setRelay(int relayId, bool state) {
-    if (relayId < 1 || relayId > 8) return false;
-    
-    m_states[relayId] = state;
+bool GpiodRelayController::setRelayPhysical(int relayId, bool state) {
     try {
         if (!m_impl->request) return false;
         unsigned int offset = m_relayGpioMap.at(relayId);
@@ -94,15 +87,6 @@ bool GpiodRelayController::setRelay(int relayId, bool state) {
         std::cerr << "[GpiodRelayController] Error setting relay " << relayId << ": " << e.what() << std::endl;
         return false;
     }
-}
-
-bool GpiodRelayController::getRelay(int relayId) const {
-    if (relayId < 1 || relayId > 8) return false;
-    return m_states[relayId];
-}
-
-std::map<int, bool> GpiodRelayController::getAllStates() const {
-    return m_states;
 }
 
 } // namespace minihil

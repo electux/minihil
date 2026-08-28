@@ -35,9 +35,11 @@ constexpr std::string_view cSysConnected{"[System] Connected successfully."};
 constexpr std::string_view cSysConnectFailed{"[System] Connection failed."};
 constexpr std::string_view cSysDisconnected{"[System] Disconnected."};
 constexpr std::string_view cSysConnectionLost{"[System] Connection lost."};
-constexpr std::string_view cSysErrorNotConnected{"[System] Error: Not connected."};
+constexpr std::string_view cSysErrorNotConnected{
+    "[System] Error: Not connected."};
 constexpr std::string_view cSysErrorSending{"[System] Error sending command."};
-constexpr std::string_view cSysErrorParsing{"[System] Error parsing response: "};
+constexpr std::string_view cSysErrorParsing{
+    "[System] Error parsing response: "};
 
 // JSON keys and values
 constexpr std::string_view cJsonRpcKey{"jsonrpc"};
@@ -68,7 +70,8 @@ namespace minihildesk {
 
 AppController::AppController(std::unique_ptr<Config::IConfigManager> config,
                              std::unique_ptr<Network::ITcpClient> client)
-    : m_config(std::move(config)), m_client(std::move(client)), m_requestId(cInitialRequestId) {}
+    : m_config(std::move(config)), m_client(std::move(client)),
+      m_requestId(cInitialRequestId) {}
 
 AppController::~AppController() { stop(); }
 
@@ -86,9 +89,12 @@ void AppController::requestConnect(const std::string &ip, int port, bool useSsl,
                                    bool useMtls) {
   requestDisconnect();
 
-  m_signalLog.emit(std::string(cSysConnecting) + ip + cColon.data() + std::to_string(port) +
-                   cSslPrefix.data() + (useSsl ? cOnStr.data() : cOffStr.data()) +
-                   cMtlsPrefix.data() + (useMtls ? cOnStr.data() : cOffStr.data()) + cSuffix.data());
+  m_signalLog.emit(std::string(cSysConnecting) + ip + cColon.data() +
+                   std::to_string(port) + cSslPrefix.data() +
+                   (useSsl ? cOnStr.data() : cOffStr.data()) +
+                   cMtlsPrefix.data() +
+                   (useMtls ? cOnStr.data() : cOffStr.data()) + cSuffix.data());
+
   if (m_client->connect(ip, port, useSsl, useMtls)) {
     m_config->setIp(ip);
     m_config->setPort(port);
@@ -112,16 +118,20 @@ void AppController::requestConnect(const std::string &ip, int port, bool useSsl,
 
 void AppController::requestDisconnect() {
   bool wasRunning = m_running.exchange(false);
+
   if (m_client) {
     m_client->shutdownSocket(); // Unblock SSL_read/recv first
   }
+
   if (m_readThread.joinable()) {
     m_readThread.join();
   }
+
   if (m_client) {
     m_client
         ->disconnect(); // Safe to free memory now that read thread is finished
   }
+
   if (wasRunning) {
     m_signalConnectionState.emit(false);
     m_signalLog.emit(cSysDisconnected.data());
@@ -157,6 +167,7 @@ void AppController::sendJsonRpc(const std::string &method,
   req[cIdKey.data()] = m_requestId++;
 
   std::string raw = req.dump() + cNewLine.data();
+
   if (m_client->send(raw)) {
     m_signalLog.emit(cTxPrefix.data() + req.dump());
   } else {
@@ -168,6 +179,7 @@ void AppController::readLoop() {
   while (m_running) {
     if (m_client && m_client->isOpen()) {
       std::string line = m_client->receiveLine();
+
       if (line.empty()) {
         if (m_running) {
           m_running = false;
@@ -176,7 +188,9 @@ void AppController::readLoop() {
         }
         break;
       }
+
       processResponse(line);
+
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(cReadLoopSleepMs));
     }
@@ -195,8 +209,10 @@ void AppController::processResponse(const std::string &rawResponse) {
 
     if (res.contains(cResultKey.data())) {
       auto result = res[cResultKey.data()];
+
       if (result.is_object()) {
-        if (result.contains(cRelayIdKey.data()) && result.contains(cStateKey.data())) {
+        if (result.contains(cRelayIdKey.data()) &&
+            result.contains(cStateKey.data())) {
           int relayId = result[cRelayIdKey.data()].get<int>();
           bool state = result[cStateKey.data()].get<bool>();
           m_signalRelayState.emit(relayId, state);
@@ -213,6 +229,7 @@ void AppController::processResponse(const std::string &rawResponse) {
         }
       }
     }
+
   } catch (const std::exception &e) {
     m_signalLog.emit(cSysErrorParsing.data() + std::string(e.what()));
   }

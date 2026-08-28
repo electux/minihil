@@ -55,6 +55,15 @@ constexpr std::string_view cResultKey{"result"};
 // RPC Methods
 constexpr std::string_view cMethodSetRelay{"set_relay"};
 constexpr std::string_view cMethodGetRelays{"get_relays"};
+constexpr std::string_view cMethodStartTimer{"start_timer"};
+constexpr std::string_view cMethodStartPulse{"start_pulse"};
+constexpr std::string_view cMethodStartBlink{"start_blink"};
+
+constexpr std::string_view cSecondsKey{"seconds"};
+constexpr std::string_view cDurationMsKey{"duration_ms"};
+constexpr std::string_view cOnMsKey{"on_ms"};
+constexpr std::string_view cOffMsKey{"off_ms"};
+constexpr std::string_view cCountKey{"count"};
 
 // Prefixes
 constexpr std::string_view cTxPrefix{"[TX] "};
@@ -147,6 +156,30 @@ void AppController::toggleRelay(int relayId, bool state) {
   params[cRelayIdKey.data()] = relayId;
   params[cStateKey.data()] = state;
   sendJsonRpc(cMethodSetRelay.data(), params);
+}
+
+void AppController::startTimer(int relayId, uint32_t seconds) {
+  nlohmann::json params;
+  params[cRelayIdKey.data()] = relayId;
+  params[cSecondsKey.data()] = seconds;
+  sendJsonRpc(cMethodStartTimer.data(), params);
+}
+
+void AppController::startPulse(int relayId, uint32_t durationMs) {
+  nlohmann::json params;
+  params[cRelayIdKey.data()] = relayId;
+  params[cDurationMsKey.data()] = durationMs;
+  sendJsonRpc(cMethodStartPulse.data(), params);
+}
+
+void AppController::startBlink(int relayId, uint32_t onMs, uint32_t offMs,
+                               uint32_t count) {
+  nlohmann::json params;
+  params[cRelayIdKey.data()] = relayId;
+  params[cOnMsKey.data()] = onMs;
+  params[cOffMsKey.data()] = offMs;
+  params[cCountKey.data()] = count;
+  sendJsonRpc(cMethodStartBlink.data(), params);
 }
 
 void AppController::queryAllRelays() { sendJsonRpc(cMethodGetRelays.data()); }

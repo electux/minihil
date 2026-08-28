@@ -55,6 +55,10 @@ public:
 private:
   void onConnectClicked();
   void onRelayToggled(int relayId, bool state);
+  void onRelayTimerStarted(int relayId, uint32_t seconds);
+  void onRelayPulseTriggered(int relayId, uint32_t durationMs);
+  void onRelayBlinkStarted(int relayId, uint32_t onMs, uint32_t offMs,
+                           uint32_t count);
 
   // Signal handlers from controller
   void onRelayStateUpdated(int relayId, bool state);

@@ -19,9 +19,9 @@ IMAGE_INSTALL:append = " \
     ${CORE_IMAGE_EXTRA_INSTALL} \
 "
 
-# Set default root password to 'root' for SSH login
+# Set default root password to 'minihil' for SSH login
 inherit extrausers
-EXTRA_USERS_PARAMS = "usermod -p '\$6\$PPKCFZH0Umomf26n\$HNEXabvmmTxiTTElkkKqupvxItpGIbJ9vQoyljK7dCb3XochlJwz5WRQykybUfH.fojSZKnYPLHPZ2aU75AYU0' root;"
+EXTRA_USERS_PARAMS = "usermod -p '\$6\$Zgq4tqK8KIuS.KdH\$fD6cUaHSJJCO2DnAd0AyLAevMpimJRgUSxsw4PV30uahLVzpW2ueGvSXxAOmhkoGw6s/soOHR27rv3v2x.Fg8/' root;"
 
 # Set rootfs partition size to 1GB (1048576 KB)
 IMAGE_ROOTFS_SIZE = "1048576"

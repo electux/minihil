@@ -4,5 +4,24 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.exclude": {
+			"**/build*": true,
+			"**/sstate-cache": true,
+			"**/downloads": true,
+			"**/tmp": true
+		},
+		"files.watcherExclude": {
+			"**/build*/**": true,
+			"**/sstate-cache/**": true,
+			"**/downloads/**": true,
+			"**/tmp/**": true
+		},
+		"search.exclude": {
+			"**/build*": true,
+			"**/sstate-cache": true,
+			"**/downloads": true,
+			"**/tmp": true
+		}
+	}
 }
